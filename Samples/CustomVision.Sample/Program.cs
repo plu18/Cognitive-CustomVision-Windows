@@ -45,90 +45,100 @@ namespace CustomVision.Sample
 {
     class Program
     {
-        private static List<string> hemlockImages;
+        private static List<string> imageLists;
 
-        private static List<string> japaneseCherryImages;
-
-        private static MemoryStream testImage;
+        private static List<List<string>> allImages;
+        
 
         static void Main(string[] args)
         {
             // Add your training key from the settings page of the portal
-            string trainingKey = "<your key here>";
-            
+            //76af0d521ed848ce8d4c8c70b7fb1f2b
+            //5d0b18588d934e1293008dcf75dd0606
+            string trainingKey = "76af0d521ed848ce8d4c8c70b7fb1f2b";
+
+
             // Create the Api, passing in the training key
             TrainingApi trainingApi = new TrainingApi() { ApiKey = trainingKey };
 
             // Create a new project
             Console.WriteLine("Creating new project:");
-            var project = trainingApi.CreateProject("My New Project");
+            var project = trainingApi.CreateProject("SilverFernAI");
 
-            // Make two tags in the new project
-            var hemlockTag = trainingApi.CreateTag(project.Id, "Hemlock");
-            var japaneseCherryTag = trainingApi.CreateTag(project.Id, "Japanese Cherry");
+            // Load all image folders
+            imageLists = Directory.GetDirectories(@"..\..\..\Images").ToList();
 
-            // Add some images to the tags
-            Console.WriteLine("\tUploading images");
-            LoadImagesFromDisk();
 
-            // Images can be uploaded one at a time
-            foreach (var image in hemlockImages)
+            List<Tag> imageTags = new List<Tag>();
+            foreach (string imageList in imageLists)
             {
-                using (var stream = new MemoryStream(File.ReadAllBytes(image)))
+                string imageClass = imageList.Split('\\').LastOrDefault();
+
+                Tag imageTag = trainingApi.CreateTag(project.Id, imageClass);
+                imageTags.Add(imageTag);
+
+                DirectoryInfo d = new DirectoryInfo(@imageList);
+                FileInfo[] infos = d.GetFiles();
+
+                List<string> images = Directory.GetFiles(@imageList).ToList();
+
+                foreach (var image in images)
                 {
-                    trainingApi.CreateImagesFromData(project.Id, stream, new List<string>() { hemlockTag.Id.ToString() });
+                    using (var stream = new MemoryStream(File.ReadAllBytes(image)))
+                    {
+                        trainingApi.CreateImagesFromData(project.Id, stream, new List<string>() { imageTag.Id.ToString() });
+                    }
                 }
             }
 
-            // Or uploaded in a single batch 
-            var imageFiles = japaneseCherryImages.Select(img => new ImageFileCreateEntry(Path.GetFileName(img), File.ReadAllBytes(img))).ToList();
-            trainingApi.CreateImagesFromFiles(project.Id, new ImageFileCreateBatch(imageFiles, new List<Guid>() { japaneseCherryTag.Id }));
 
-            // Now there are images with tags start training the project
-            Console.WriteLine("\tTraining");
-            var iteration = trainingApi.TrainProject(project.Id);
 
-            // The returned iteration will be in progress, and can be queried periodically to see when it has completed
-            while (iteration.Status == "Training")
-            {
-                Thread.Sleep(1000);
+            //    // Now there are images with tags start training the project
+            //    Console.WriteLine("\tTraining");
+            //    var iteration = trainingApi.TrainProject(project.Id);
 
-                // Re-query the iteration to get it's updated status
-                iteration = trainingApi.GetIteration(project.Id, iteration.Id);
-            }
+            //    // The returned iteration will be in progress, and can be queried periodically to see when it has completed
+            //    while (iteration.Status == "Training")
+            //    {
+            //        Thread.Sleep(1000);
 
-            // The iteration is now trained. Make it the default project endpoint
-            iteration.IsDefault = true;
-            trainingApi.UpdateIteration(project.Id, iteration.Id, iteration);
-            Console.WriteLine("Done!\n");
+            //        // Re-query the iteration to get it's updated status
+            //        iteration = trainingApi.GetIteration(project.Id, iteration.Id);
+            //    }
 
-            // Now there is a trained endpoint, it can be used to make a prediction
+            //    // The iteration is now trained. Make it the default project endpoint
+            //    iteration.IsDefault = true;
+            //    trainingApi.UpdateIteration(project.Id, iteration.Id, iteration);
+            //    Console.WriteLine("Done!\n");
 
-            // Add your prediction key from the settings page of the portal
-            // The prediction key is used in place of the training key when making predictions
-            string predictionKey = "<your key here>";
+            //    // Now there is a trained endpoint, it can be used to make a prediction
 
-            // Create a prediction endpoint, passing in obtained prediction key
-            PredictionEndpoint endpoint = new PredictionEndpoint() { ApiKey = predictionKey };
+            //    // Add your prediction key from the settings page of the portal
+            //    // The prediction key is used in place of the training key when making predictions
+            //    string predictionKey = "<your key here>";
 
-            // Make a prediction against the new project
-            Console.WriteLine("Making a prediction:");
-            var result = endpoint.PredictImage(project.Id, testImage);
+            //    // Create a prediction endpoint, passing in obtained prediction key
+            //    PredictionEndpoint endpoint = new PredictionEndpoint() { ApiKey = predictionKey };
 
-            // Loop over each prediction and write out the results
-            foreach (var c in result.Predictions)
-            {
-                Console.WriteLine($"\t{c.Tag}: {c.Probability:P1}");
-            }
-            Console.ReadKey();
-        }
+            //    // Make a prediction against the new project
+            //    Console.WriteLine("Making a prediction:");
+            //    var result = endpoint.PredictImage(project.Id, testImage);
 
-        private static void LoadImagesFromDisk()
-        {
-            // this loads the images to be uploaded from disk into memory
-            hemlockImages = Directory.GetFiles(@"..\..\..\Images\Hemlock").ToList();
-            japaneseCherryImages = Directory.GetFiles(@"..\..\..\Images\Japanese Cherry").ToList();
-            testImage = new MemoryStream(File.ReadAllBytes(@"..\..\..\Images\Test\test_image.jpg"));
+            //    // Loop over each prediction and write out the results
+            //    foreach (var c in result.Predictions)
+            //    {
+            //        Console.WriteLine($"\t{c.Tag}: {c.Probability:P1}");
+            //    }
+            //    Console.ReadKey();
+            //}
+
+            //private static void LoadImagesFromDisk()
+            //{
+            //    // this loads the images to be uploaded from disk into memory
+            //    hemlockImages = Directory.GetFiles(@"..\..\..\Images\Hemlock").ToList();
+            //    japaneseCherryImages = Directory.GetFiles(@"..\..\..\Images\Japanese Cherry").ToList();
+            //    testImage = new MemoryStream(File.ReadAllBytes(@"..\..\..\Images\Test\test_image.jpg"));
+            //}
         }
     }
 }
